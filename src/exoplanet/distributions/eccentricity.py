@@ -10,7 +10,9 @@ from ..citations import add_citations_to_model
 from .base import UnitUniform
 
 
-def kipping13(name, fixed=False, long=None, model=None, **kwargs):
+def kipping13(
+    name, fixed=False, long=None, lower=None, upper=None, model=None, **kwargs
+):
     """The beta eccentricity distribution fit by Kipping (2013)
 
     The beta distribution parameters fit by `Kipping (2013b)
@@ -24,6 +26,10 @@ def kipping13(name, fixed=False, long=None, model=None, **kwargs):
             period fit. If ``False``, use the parameters for the short period
             fit. If not given, the parameters fit using the full dataset are
             used.
+        lower (float, optional): Restrict the eccentricity to be larger than
+            this value.
+        upper (float, optional): Restrict the eccentricity to be smaller than
+            this value.
 
     Returns:
         The eccentricity distribution.
@@ -69,11 +75,27 @@ def kipping13(name, fixed=False, long=None, model=None, **kwargs):
                     "beta", mu=beta_mu, sd=beta_sd, testval=beta_mu
                 )
 
-        # Construct the eccentricity itself
+        # Allow for upper and lower bounds
+        if lower is not None or upper is not None:
+            dist = pm.Bound(
+                pm.Beta,
+                lower=0.0 if lower is None else lower,
+                upper=1.0 if upper is None else upper,
+            )
+            return dist(name, alpha=alpha, beta=beta, **kwargs)
+
         return pm.Beta(name, alpha=alpha, beta=beta, **kwargs)
 
 
-def vaneylen19(name, fixed=False, multi=False, model=None, **kwargs):
+def vaneylen19(
+    name,
+    fixed=False,
+    multi=False,
+    lower=None,
+    upper=None,
+    model=None,
+    **kwargs,
+):
     """The eccentricity distribution for small planets
 
     The mixture distribution fit by `Van Eylen et al. (2019)
@@ -87,6 +109,10 @@ def vaneylen19(name, fixed=False, multi=False, model=None, **kwargs):
         multi (bool, optional): If ``True``, use the distribution for systems
             with multiple transiting planets. If ``False`` (default), use the
             distribution for systems with only one detected transiting planet.
+        lower (float, optional): Restrict the eccentricity to be larger than
+            this value.
+        upper (float, optional): Restrict the eccentricity to be smaller than
+            this value.
 
     Returns:
         The eccentricity distribution.
@@ -108,7 +134,15 @@ def vaneylen19(name, fixed=False, multi=False, model=None, **kwargs):
         frac_sd = 0.2
 
     with model:
-        ecc = UnitUniform(name, **kwargs)
+        if lower is None and upper is None:
+            ecc = UnitUniform(name, **kwargs)
+        else:
+            ecc = pm.Uniform(
+                name,
+                lower=0.0 if lower is None else lower,
+                upper=1.0 if upper is None else upper,
+                **kwargs,
+            )
 
         with pm.Model(name=name):
 
